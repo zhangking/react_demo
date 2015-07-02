@@ -33,6 +33,7 @@
       }
     },
     getInitialState:function(){
+      this.eventselect();
       this.selection = { x1: 0, y1: 0, x2: 0, y2: 0, width: 0, height: 0 };
       return {
         selection:{x1: 0, y1: 0, x2: 0, y2: 0, width: 0, height: 0 },
@@ -53,9 +54,9 @@
       var aspectRatio = (d = (this.props.aspectRatio || '').split(/:/))[0] / d[1];
       
       for(var i=0;i<4;i++){
-       addEndListener(this.refs['outer'+i].getDOMNode(),'mousedown',this.imgmousedown);
+       addEndListener(this.refs['outer'+i].getDOMNode(),this.down,this.imgmousedown);
      }
-     addEndListener(this.img,'mousedown',this.imgmousedown);
+     addEndListener(this.img,this.down,this.imgmousedown);
 
      if(this.props.initarea != null){
       var d = this.props.initarea;
@@ -66,8 +67,8 @@
       this.show();
     }
 
-    addEndListener(this.box,'mousedown',this.areamousedown);
-    addEndListener(this.box,'mousemove',this.areamousemove);
+    addEndListener(this.box,this.down,this.areamousedown);
+    addEndListener(this.box,this.move,this.areamousemove);
     addEndListener(window,'resize',this.update);
 
     typeof this.props.create == 'function' ? self.props.create(this.img, this.getselection()) : 0; 
@@ -186,14 +187,24 @@
           }
         }
       },
+      getposition:function(event){
+        console.log(event);
+         var x = this.ismobile()?event.changedTouches[0].pageX:event.pageX,
+             y = this.ismobile()?event.changedTouches[0].pageY:event.pageY;
+          return {
+            x:x,
+            y:y
+          }
+
+      },
       areamousemove:function(event){
-        var x = event.pageX-this.imgOfs.left - this.selection.x1,
-        y = event.pageY-this.imgOfs.top - this.selection.y1;
+        var x = this.getposition(event)['x']-this.imgOfs.left - this.selection.x1,
+        y = this.getposition(event)['y']-this.imgOfs.top - this.selection.y1;
 
         if (!this.adjusted) {
           this.adjust();
           this.adjusted = true;
-          one(this.box,'mouseout',function(){this.adjusted = false;});
+          one(this.box,this.up,function(){this.adjusted = false;});
         }
 
         this.resize = '';
@@ -208,11 +219,11 @@
           this.resize += 'e';
 
         var resize = this.resize ? this.resize + '-resize' :this.props.movable ? 'move' : '';
+
         this.box.style.cursor = resize;
       },
       areamousedown:function(event){
         var self = this;
-        if (event.which != 1) return false;
         this.adjust();
         if (this.resize) {
           document.body.style.cursor = this.resize + '-resize'; 
@@ -220,20 +231,20 @@
           this.x1 = this.selection[/w/.test(this.resize) ? 'x2' : 'x1'];
           this.y1 = this.selection[/n/.test(this.resize) ? 'y2' : 'y1'];
 
-          addEndListener(document,'mousemove',this.selectingmousemove);
-          one(document,'mouseup',this.docmouseup);
-          removeEventListener(this.box,'mousemove',this.areamousemove);
+          addEndListener(document,this.move,this.selectingmousemove);
+          one(document,this.up,this.docmouseup);
+          removeEventListener(this.box,this.move,this.areamousemove);
         }
         else{
-          this.startX = this.selection.x1 - event.pageX;
-          this.startY = this.selection.y1 - event.pageY;
+          this.startX = this.selection.x1 - this.getposition(event)['x'];
+          this.startY = this.selection.y1 - this.getposition(event)['y'];
 
-          removeEventListener(this.box,'mousemove',this.areamousemove);
-          addEndListener(document,'mousemove',this.movingmousemove);
-          one(document,'mouseup',function () {
+          removeEventListener(this.box,this.move,this.areamousemove);
+          addEndListener(document,this.move,this.movingmousemove);
+          one(document,this.up,function () {
             typeof self.props.stop == 'function' ?self.props.stop(self.img, self.getselection()):0;
-            removeEventListener(document,'mousemove',self.movingmousemove);
-            addEndListener(self.box,'mousemove',self.areamousemove);
+            removeEventListener(document,this.move,self.movingmousemove);
+            addEndListener(self.box,this.move,self.areamousemove);
           });
         }
 
@@ -244,14 +255,14 @@
         if (this.selection.width * this.height == 0)
           this.hide();
 
-        removeEventListener(document,'mousemove',this.selectingmousemove);
-        addEndListener(this.box,'mousemove',this.areamousemove);
+        removeEventListener(document,this.move,this.selectingmousemove);
+        addEndListener(this.box,this.move,this.areamousemove);
 
         this.props.stop?this.props.stop(this.img, this.getselection()):0;
       },
 
       startselection:function(event){
-        removeEventListener(document,'mousemove',this.startselection);
+        removeEventListener(document,this.move,this.startselection);
         this.adjust();
 
         this.x2 = this.x1;
@@ -262,16 +273,16 @@
         this.shown = true;
         this.show();
 
-        removeEventListener(document,'mouseup',this.cancelselection);
-        addEndListener(document,'mousemove',this.selectingmousemove);
-        one(document,'mouseup',this.docmouseup);
+        removeEventListener(document,this.up,this.cancelselection);
+        addEndListener(document,this.move,this.selectingmousemove);
+        one(document,this.up,this.docmouseup);
         removeEventListener(this.box,this.areamousemove);
 
         typeof this.props.start == 'function'?this.props.start(this.img, this.getselection()):0;
       },
       cancelselection:function(){
-        removeEventListener(document,'mousemove',this.startselection);
-        removeEventListener(document,'mouseup',this.cancelselection);
+        removeEventListener(document,this.move,this.startselection);
+        removeEventListener(document,this.up,this.cancelselection);
 
         this.hide();
 
@@ -281,8 +292,8 @@
         typeof this.props.stop == 'function' ?this.props.stop(this.img, this.getselection()):0;
       },
       selectingmousemove:function(event){
-        this.x2 = /w|e|^$/.test(this.resize) || this.aspectRatio ? event.pageX - this.imgOfs.left : this.selection.x2;
-        this.y2 = /n|s|^$/.test(this.resize) || this.aspectRatio ? event.pageY - this.imgOfs.top : this.selection.y2;
+        this.x2 = /w|e|^$/.test(this.resize) || this.aspectRatio ? this.getposition(event)['x'] - this.imgOfs.left : this.selection.x2;
+        this.y2 = /n|s|^$/.test(this.resize) || this.aspectRatio ? this.getposition(event)['y'] - this.imgOfs.top : this.selection.y2;
         this.doresize();
 
         return false;
@@ -301,8 +312,8 @@
         typeof this.props.change == 'function' ?this.props.change(this.img, this.getselection()):0;
       },
       movingmousemove:function(event){
-        this.x1 = Math.max(0, Math.min(this.startX + event.pageX, this.imgWidth - this.selection.width));
-        this.y1 = Math.max(0, Math.min(this.startY + event.pageY, this.imgHeight - this.selection.height));
+        this.x1 = Math.max(0, Math.min(this.startX + this.getposition(event)['x'], this.imgWidth - this.selection.width));
+        this.y1 = Math.max(0, Math.min(this.startY + this.getposition(event)['y'], this.imgHeight - this.selection.height));
 
         this.domove();
         event.preventDefault();
@@ -310,19 +321,36 @@
         return false;
       },
       imgmousedown:function(event){
-        if (event.which != 1) return false;
-
         this.adjust();
-        this.startX = this.x1 = event.pageX - this.imgOfs.left;
-        this.startY = this.y1 = event.pageY - this.imgOfs.top;
+        this.startX = this.x1 = this.getposition(event)['x'] - this.imgOfs.left;
+        this.startY = this.y1 = this.getposition(event)['y'] - this.imgOfs.top;
 
-        addEndListener(document,'mousemove',this.startselection);
-        addEndListener(document,'mouseup',this.cancelselection);
+        addEndListener(document,this.move,this.startselection);
+        addEndListener(document,this.up,this.cancelselection);
 
         return false;
 
       },
-
+      ismobile:function(){
+        if (navigator.userAgent.match(/Android/i) || navigator.userAgent.indexOf('iPhone') != -1 || navigator.userAgent.indexOf('iPod') != -1 || navigator.userAgent.indexOf('iPad') != -1) {
+            return true;
+        }
+        else {
+            return false;
+        }
+      },
+      eventselect:function(){
+        if (this.ismobile()) {
+            this.down = 'touchstart';
+            this.move = 'touchmove';
+            this.up = 'touchup';
+        }
+        else {
+            this.down = 'mousedown';
+            this.move = 'mousemove';
+            this.up = 'mouseup';
+        }
+      },
       update:function(){
         var self = this;
         this.setState({
