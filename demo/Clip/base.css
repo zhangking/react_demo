@@ -9,7 +9,21 @@
     left: 0;
     top: 0;
 }
+.clip_border1 {
+    background: url(./images/border-anim-v.gif) repeat-y left top;
+}
 
+.clip_border2 {
+    background: url(./images/border-anim-h.gif) repeat-x left top;
+}
+
+.clip_border3 {
+    background: url(./images/border-anim-v.gif) repeat-y right top;
+}
+
+.clip_border0 {
+    background: url(./images/border-anim-h.gif) repeat-x left bottom;
+}
 .clip_handle {
     background-color: #fff;
     border: solid 1px #000;
